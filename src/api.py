@@ -55,7 +55,7 @@ class CustomTelegramTransport(TelegramTransport):
         """Parses an inbound Telegram message."""
         
         if not payload.get("text").startswith("@GemachAlphaIntelligence"):
-            print(payload.get("text"))
+            print(payload)
             return None 
         else:
             return super()._parse_inbound(payload, context)
@@ -66,9 +66,10 @@ class MyAssistant(AgentService):
     
     USED_MIXIN_CLASSES = [SteamshipWidgetTransport, CustomTelegramTransport]
     class TelegramBotConfig(Config):
+        
         bot_token: str = Field(description="The secret token for your Telegram bot")
         api_base: str = Field("https://api.telegram.org/bot", description="The root API for Telegram")
-
+        
     @classmethod
     def config_cls(cls) -> Type[Config]:
             return MyAssistant.TelegramBotConfig

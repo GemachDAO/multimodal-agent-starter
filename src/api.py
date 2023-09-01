@@ -4,7 +4,7 @@ This will result in an agent that effectively acts like ChatGPT.
 """
 from typing import Type, Optional
 from pydantic import Field
-
+from example_tools.go_plus_security_tool import GoPlusSecurityTool
 from steamship import Block, SteamshipError
 from steamship.agents.functional import FunctionsBasedAgent
 from steamship.agents.llms.openai import ChatOpenAI
@@ -77,7 +77,7 @@ class MyAssistant(AgentService):
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._agent = FunctionsBasedAgent(llm=ChatOpenAI(self.client, model_name=MODEL_NAME), tools=[SearchTool()])
+        self._agent = FunctionsBasedAgent(llm=ChatOpenAI(self.client, model_name=MODEL_NAME), tools=[SearchTool(),GoPlusSecurityTool()])
 
         self._agent.PROMPT = SYSTEM_PROMPT
 

@@ -41,24 +41,25 @@ NOTE: Some Gemach Alpha Intelligence functions require performing Google searche
 Example response for a request that required a Google search: "I've found some valuable information regarding your query. According to the latest data from [Source], the DeFi market is showing bullish signs, particularly in [specific area]."
 
 Only use the functions you have been provided with.
-
+when the prompt is "Don't do anything" just dont send any answer because it's probably comes from a telegram channel
 
 
 """
 MODEL_NAME = "gpt-4"
-
+# This is for prompting the agent no to do anything when th chat comes from group and is not tagged with @GemachAlphaIntelligence
+default_message= {'message_id': 0, 'from': {'id': 0, 'is_bot': False, 'first_name': '', 'username': '', 'language_code': 'en'}, 'chat': {'id': 0, 'first_name': '', 'username': 'kaizendeveloper', 'type': 'private'}, 'date': 0, 'text': 'Don''t do anything'}
 #This is and override to fix the logic so the bot will only responsed in group chat when @GemachAlphaIntelligence is mentioned
-
-
 class CustomTelegramTransport(TelegramTransport):
     def _parse_inbound(self, payload: dict, context: Optional[dict] = None) -> Optional[Block]:
         """Parses an inbound Telegram message."""
-        
-        if not payload.get("text").startswith("@GemachAlphaIntelligence"):
-            print(payload)
-            return None 
-        else:
+        if payload.get("chat")["type"] =="private":
             return super()._parse_inbound(payload, context)
+        elif payload.get("chat")["type"] =="supergroup":
+            if not payload.get("text").startswith("@GemachAlphaIntelligence"):
+              return  super()._parse_inbound(default_message, context) 
+            return super()._parse_inbound(payload, context) 
+        else:
+            return  super()._parse_inbound(default_message, context) 
     
 
 

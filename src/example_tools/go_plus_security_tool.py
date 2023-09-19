@@ -35,7 +35,6 @@ class GoPlusSecurityTool(Tool):
         """
         Execute the Security check using the GoPlus API.
         """
-        print(context.chat_history)
         output = []
         for block in tool_input:
             if block.is_text():

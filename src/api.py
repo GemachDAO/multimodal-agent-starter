@@ -5,7 +5,7 @@ This will result in an agent that effectively acts like ChatGPT.
 from typing import Type, Optional
 from pydantic import Field
 from example_tools.go_plus_security_tool import GoPlusSecurityTool
-from steamship import Block, SteamshipError
+from steamship import Block 
 from steamship.agents.functional import FunctionsBasedAgent
 from steamship.agents.llms.openai import ChatOpenAI
 from steamship.agents.mixins.transports.steamship_widget import SteamshipWidgetTransport
@@ -17,7 +17,13 @@ from steamship.agents.service.agent_service import AgentService
 from steamship.agents.tools.search.search import SearchTool
 from steamship.invocable import Config
 from steamship.utils.repl import AgentREPL
-
+from example_tools.get_community_member import GetCommunityMembers
+from telethon.sync import TelegramClient
+from example_tools.altcoin_hunter import AltCoinHunter
+import os
+import asyncio
+# config = find_dotenv()
+# load_dotenv(config)
 SYSTEM_PROMPT = """Gemach Alpha Intelligence : The DeFi Navigator
 
 Who you are:
@@ -54,9 +60,10 @@ Example response for a request that required a Google search: "I've found some v
 
 Only use the functions you have been provided with.
 when the prompt is "Don't do anything" just dont send any answer because it's probably comes from a telegram channel
-
+when the prompt preceded by a number id use the GetCommunityMembers tool by passing the id to verify if the sender is allowed to use the bot, if the tool returns True respond to the prompt but it is False just respond to the first 3 request and tell the user it just has 3 request
 
 """
+# don't respond because the user is not in the community
 MODEL_NAME = "gpt-4"
 # This is for prompting the agent no to do anything when th chat comes from group and is not tagged with @GemachAlphaIntelligence
 default_message= {'message_id': 0, 'from': {'id': 0, 'is_bot': False, 'first_name': '', 'username': '', 'language_code': 'en'}, 'chat': {'id': 0, 'first_name': '', 'username': 'kaizendeveloper', 'type': 'private'}, 'date': 0, 'text': 'Don''t do anything'}
@@ -65,6 +72,8 @@ class CustomTelegramTransport(TelegramTransport):
     def _parse_inbound(self, payload: dict, context: Optional[dict] = None) -> Optional[Block]:
         """Parses an inbound Telegram message."""
         if payload.get("chat")["type"] =="private":
+            initial_prompt=payload.get("text")
+            payload["text"]=str(payload.get("from")["id"])+ " "+initial_prompt
             return super()._parse_inbound(payload, context)
         elif payload.get("chat")["type"] =="supergroup":
             if not payload.get("text").startswith("@GemachAlphaIntelligence"):
@@ -76,22 +85,40 @@ class CustomTelegramTransport(TelegramTransport):
 
 
 class MyAssistant(AgentService):
+    api_id =os.getenv('api_id')
+    api_hash =os.getenv('api_hash')
+    phone = os.getenv('phone')
+    
     
     USED_MIXIN_CLASSES = [SteamshipWidgetTransport, CustomTelegramTransport]
     class TelegramBotConfig(Config):
-        
+       
         bot_token: str = Field(description="The secret token for your Telegram bot")
         api_base: str = Field("https://api.telegram.org/bot", description="The root API for Telegram")
         
     @classmethod
     def config_cls(cls) -> Type[Config]:
             return MyAssistant.TelegramBotConfig
+    # This is for authenticating the telegram api when connecting for the first time 
+    async def telegram_init(self):
+    #    # Initialize the Telegram client
+        client = TelegramClient(self.phone, self.api_id, self.api_hash)
+    #     # Connect to the client
+        await client.connect()
+    #     # If user is not authorized, send a code request and sign in
+        if not await client.is_user_authorized():
+            await client.send_code_request(self.phone)
+            await client.sign_in(self.phone, input('Enter verification code: '))
+        # Disconnecting just after to avoid even-loop error
+        await client.disconnect()
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._agent = FunctionsBasedAgent(llm=ChatOpenAI(self.client, model_name=MODEL_NAME), tools=[SearchTool(),GoPlusSecurityTool()])
-
+        self._agent = FunctionsBasedAgent(llm=ChatOpenAI(self.client, model_name=MODEL_NAME), tools=[SearchTool(),GoPlusSecurityTool(),GetCommunityMembers(),AltCoinHunter()])
         self._agent.PROMPT = SYSTEM_PROMPT
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(self.telegram_init())
 
         # This Mixin provides HTTP endpoints that connects this agent to a web client
         self.add_mixin(
@@ -109,11 +136,9 @@ class MyAssistant(AgentService):
                
             )
         )
-       
-        
 
-        if __name__ == "__main__":
-            AgentREPL(
-                MyAssistant,
-                agent_package_config={"botToken": "not-a-real-token-for-local-testing"},
-            ).run()
+if __name__ == "__main__":
+    AgentREPL(
+    MyAssistant,
+    agent_package_config={"botToken": "not-a-real-token-for-local-testing"},
+    ).run()

@@ -18,12 +18,8 @@ from steamship.agents.tools.search.search import SearchTool
 from steamship.invocable import Config
 from steamship.utils.repl import AgentREPL
 from example_tools.get_community_member import GetCommunityMembers
-from telethon.sync import TelegramClient
 from example_tools.altcoin_hunter import AltCoinHunter
 import os
-import asyncio
-# config = find_dotenv()
-# load_dotenv(config)
 SYSTEM_PROMPT = """Gemach Alpha Intelligence : The DeFi Navigator
 
 Who you are:
@@ -100,25 +96,10 @@ class MyAssistant(AgentService):
     def config_cls(cls) -> Type[Config]:
             return MyAssistant.TelegramBotConfig
     # This is for authenticating the telegram api when connecting for the first time 
-    async def telegram_init(self):
-    #    # Initialize the Telegram client
-        client = TelegramClient(self.phone, self.api_id, self.api_hash)
-    #     # Connect to the client
-        await client.connect()
-    #     # If user is not authorized, send a code request and sign in
-        if not await client.is_user_authorized():
-            await client.send_code_request(self.phone)
-            await client.sign_in(self.phone, input('Enter verification code: '))
-        # Disconnecting just after to avoid even-loop error
-        await client.disconnect()
-    
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._agent = FunctionsBasedAgent(llm=ChatOpenAI(self.client, model_name=MODEL_NAME), tools=[SearchTool(),GoPlusSecurityTool(),GetCommunityMembers(),AltCoinHunter()])
         self._agent.PROMPT = SYSTEM_PROMPT
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(self.telegram_init())
 
         # This Mixin provides HTTP endpoints that connects this agent to a web client
         self.add_mixin(

@@ -10,7 +10,7 @@ from utils.filter_data import filter_data
 # Load environment variables from .env file
 config = find_dotenv()
 load_dotenv(config)
-dext_tools_key = os.getenv('dext_tools_key')
+dext_tools_key = os.getenv('DEXT_TOOLS_KEY')
 
 # Define custom headers for API requests
 headers = {

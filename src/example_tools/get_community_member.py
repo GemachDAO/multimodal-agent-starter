@@ -5,6 +5,7 @@ from telethon.sync import TelegramClient
 from telethon.tl.functions.messages import GetDialogsRequest
 from telethon.tl.types import InputPeerEmpty
 from steamship.utils.repl import ToolREPL
+from telethon.sessions import StringSession
 import os
 import asyncio
 
@@ -38,11 +39,11 @@ class GetCommunityMembers(Tool):
     # Define an asynchronous method to fetch data from Telegram
     async def fetch_telegram_data(self):
         # Telegram API credentials
-        api_id =os.getenv('api_id')
-        api_hash =os.getenv('api_hash')
-        phone = os.getenv('phone')
+        api_id =os.getenv('API_ID')
+        api_hash =os.getenv('API_HASH')
+        session_string = os.getenv('SESSION_STRING')
         # Initialize the Telegram client
-        client = TelegramClient(phone, api_id, api_hash)
+        client= TelegramClient(StringSession(session_string), api_id, api_hash)
         # Connect to the client
         await client.connect()
         # Initialize variables to store chat data

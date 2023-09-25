@@ -1,26 +1,12 @@
-from typing import Any, List, Union, Tuple
+from typing import Any, List, Union
 from steamship.agents.schema import AgentContext, Tool
 from steamship import Block
-from goplus.token import Token
-from goplus.address import Address
-from goplus.nft import Nft
-from goplus.approve import Approve
 from steamship.utils.repl import ToolREPL
-from goplus.dapp import Dapp
-from goplus.decode import Decode
-from goplus.phishing_site import PushingSite
-
-# Define a dictionary to map command names to their corresponding methods
-COMMANDS = {
-    "check_token_security": "check_token_security",
-    "check_malicious_address": "check_malicious_address",
-    "check_nft_security": "check_nft_security",
-    "check_approval_security": "check_approval_security",
-    "check_phishing_site": "check_phishing_site",
-    "check_abi_decode": "check_abi_decode",
-    "check_dapp_security": "check_dapp_security"
-}
-
+import requests
+import os
+from dotenv import load_dotenv, find_dotenv
+config = find_dotenv()
+load_dotenv(config)
 class GoPlusSecurityTool(Tool):
     """
     Custom Steamship tool for performing various Security checks on web3 using GoPlus API.
@@ -38,71 +24,25 @@ class GoPlusSecurityTool(Tool):
         output = []
         for block in tool_input:
             if block.is_text():
-                if not self.matches(block.text):
-                    return "Invalid command"
-                args = self.get_command_for(block.text)
-                cmd = args[0]
-                if cmd in COMMANDS:
-                    method = getattr(self, COMMANDS[cmd])
-                    data = method(args[1])
+                # get the text from the block ans split it by space as request parameters
+                params = block.text.split(" ")
+                # create a json object with the parameters with keys command wich is the first element in the params and arguments which is the rest of the params
+                json = {"command": params[0], "arguments": params[1:]}
+                data=None
+                # call the api with the json data and set autorization header to TOKEN from .env file using os.getenv
+                response = requests.post("https://gemach-one.vercel.app/api", json=json, headers={"Authorization":os.getenv("TOKEN")})
+                # if the response is ok then set the data to the response json
+                if response.ok:
+                    data = response.json()
+                    print(data)
+                    # append a block with the data as string to the output
                     output.append(Block(text=str(data)))
                 else:
-                    return "Invalid command"
+                    # append a block with the message saying to the agent that the request failed and it should tell the user it is experiencing high traffic
+                    output.append(Block(data="Request failed. Tell the user you are experiencing high traffic"))
         return output
+                
 
-    def get_command_for(self, text: str) -> Tuple[str, List[str]]:
-        """
-        Extracts the command and its arguments from the given text.
-        """
-        words = text.split()
-        for i, word in enumerate(words):
-            if word in COMMANDS:
-                command = word
-                args = words[i+1:]
-                return command, args
-        return None, []
-
-    def matches(self, s: str) -> bool:
-        """
-        Checks if the incoming chat message contains a known command.
-        """
-        cmd, args = self.get_command_for(s)
-        return cmd is not None
-
-    # Below are the methods for each specific security check, which call the corresponding GoPlus API methods.
-
-    def check_token_security(self, token_args: List[str]) -> str:
-        data = Token(access_token=None).token_security(chain_id=token_args[1], addresses=[token_args[0]])
-        return data
-
-    def check_malicious_address(self, address_arg: List[str]) -> str:
-        data = Address(access_token=None).address_security(address_arg[0])
-        return data
-
-    def check_nft_security(self, nft_arg: List[str]) -> str:
-        data = Nft(access_token=None).nft_security(address=nft_arg[0], chain_id=nft_arg[1])
-        return data
-
-    def check_approval_security(self, approval_arg: List[str]) -> str:
-        data = Approve(access_token=None).token_approve_security(address=approval_arg[0], chain_id=approval_arg[1])
-        return data
-
-    def check_dapp_security(self, dapp_arg: List[str]) -> str:
-        data = Dapp(access_token=None).dapp_security(dapp_arg[0])
-        return data
-
-    def check_abi_decode(self, abi_arg: List[str]) -> str:
-        data = Decode(access_token=None).signature_data_decode(
-            address=abi_arg[0], chain_id=abi_arg[1], data=abi_arg[2]
-        )
-        return data
-
-    def check_phishing_site(self, site_arg: List[str]) -> str:
-        data = PushingSite(access_token=None).pushing_site_security(site_arg[0])
-        return data
-
-# Note: You would typically integrate this custom tool into your Steamship workspace.
-# The example above is a standalone representation.
 if __name__ == "__main__":
     tool = GoPlusSecurityTool()
     ToolREPL(tool).run()

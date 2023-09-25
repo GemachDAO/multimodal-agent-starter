@@ -5,7 +5,7 @@ This will result in an agent that effectively acts like ChatGPT.
 from typing import Type, Optional
 from pydantic import Field
 from example_tools.go_plus_security_tool import GoPlusSecurityTool
-from steamship import Block 
+from steamship import Block ,SteamshipError
 from steamship.agents.functional import FunctionsBasedAgent
 from steamship.agents.llms.openai import ChatOpenAI
 from steamship.agents.mixins.transports.steamship_widget import SteamshipWidgetTransport
@@ -13,11 +13,12 @@ from steamship.agents.mixins.transports.telegram import (
     TelegramTransport,
     TelegramTransportConfig,
 )
+import asyncio
+from utils.verify_members import fetch_telegram_data
 from steamship.agents.service.agent_service import AgentService
 from steamship.agents.tools.search.search import SearchTool
 from steamship.invocable import Config
 from steamship.utils.repl import AgentREPL
-from example_tools.get_community_member import GetCommunityMembers
 from example_tools.altcoin_hunter import AltCoinHunter
 import os
 SYSTEM_PROMPT = """Gemach Alpha Intelligence : The DeFi Navigator
@@ -53,32 +54,70 @@ Here are the different actions that can be performed as part of requesting secur
 When returning search results to a user, ensure the information is clear, concise, and beneficial to their DeFi journey.
 
 Example response for a request that required a Google search: "I've found some valuable information regarding your query. According to the latest data from [Source], the DeFi market is showing bullish signs, particularly in [specific area]."
+IMPORTANT: a discussion starting with "unverified_member /start" come from non-member users, tell them they are not member of GemachDAO Community wich is token-gated. They should be holder of Gemach Token to be able to join the community and fully use the Agent and just respond to their first 3 request.
 
 Only use the functions you have been provided with.
-when the prompt is "Don't do anything" just dont send any answer because it's probably comes from a telegram channel
-when the prompt preceded by a number id use the GetCommunityMembers tool by passing the id to verify if the sender is allowed to use the bot, if the tool returns True respond to the prompt but it is False just respond to the first 3 request and tell the user it just has 3 request
-
+when the prompt is "Don't respond" just dont send any answer because it probably comes from a telegram channel
 """
-# don't respond because the user is not in the community
 MODEL_NAME = "gpt-4"
-# This is for prompting the agent no to do anything when th chat comes from group and is not tagged with @GemachAlphaIntelligence
-default_message= {'message_id': 0, 'from': {'id': 0, 'is_bot': False, 'first_name': '', 'username': '', 'language_code': 'en'}, 'chat': {'id': 0, 'first_name': '', 'username': 'kaizendeveloper', 'type': 'private'}, 'date': 0, 'text': 'Don''t do anything'}
-#This is and override to fix the logic so the bot will only responsed in group chat when @GemachAlphaIntelligence is mentioned
+
 class CustomTelegramTransport(TelegramTransport):
     def _parse_inbound(self, payload: dict, context: Optional[dict] = None) -> Optional[Block]:
         """Parses an inbound Telegram message."""
-        if payload.get("chat")["type"] =="private":
-            initial_prompt=payload.get("text")
-            payload["text"]=str(payload.get("from")["id"])+ " "+initial_prompt
-            return super()._parse_inbound(payload, context)
-        elif payload.get("chat")["type"] =="supergroup":
-            if not payload.get("text").startswith("@GemachAlphaIntelligence"):
-              return  super()._parse_inbound(default_message, context) 
-            return super()._parse_inbound(payload, context) 
-        else:
-            return  super()._parse_inbound(default_message, context) 
-    
+        chat = payload.get("chat")
+        if chat is None:
+            raise SteamshipError(f"No `chat` found in Telegram message: {payload}")
+        chat_id = chat.get("id")
+        if chat_id is None:
+            raise SteamshipError(f"No 'chat_id' found in Telegram message: {payload}")
+        if not isinstance(chat_id, int):
+            raise SteamshipError(
+                f"Bad 'chat_id' found in Telegram message: ({chat_id}). Should have been an int."
+            )
+        message_id = payload.get("message_id")
+        if message_id is None:
+            raise SteamshipError(f"No 'message_id' found in Telegram message: {payload}")
+        if not isinstance(message_id, int):
+            raise SteamshipError(
+                f"Bad 'message_id' found in Telegram message: ({message_id}). Should have been an int"
+            )
+        
 
+        if video_or_voice := (payload.get("voice") or payload.get("video_note")):
+            file_id = video_or_voice.get("file_id")
+            file_url = self._get_file_url(file_id)
+            block = Block(
+                text=payload.get("text"),
+                url=file_url,
+            )
+            block.set_chat_id(str(chat_id))
+            block.set_message_id(str(message_id))
+            return block
+        message_text:str = payload.get("text") 
+        if payload.get("chat")["type"] =="private":
+            if message_text=='/start':
+                user_id=payload.get("from")["id"]
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                is_member = loop.run_until_complete(fetch_telegram_data(user_id))
+                if(is_member):
+                    message_text="verified_member "+" "+message_text
+                else:
+                    message_text="unverified_member "+" "+message_text
+        elif payload.get("chat")["type"] =="supergroup":
+                prefix = "@GemchAplhatest_bot"
+                if not message_text.startswith(prefix):
+                     message_text=None
+        if message_text is not None:
+            result = Block(text=message_text)
+            result.set_chat_id(str(chat_id))
+            result.set_message_id(str(message_id))
+            return result
+        else:
+            result = Block(text="Don't respond")
+            result.set_chat_id(str(chat_id))
+            result.set_message_id(str(message_id))
+            return result
 
 class MyAssistant(AgentService):
     api_id =os.getenv('api_id')
@@ -98,7 +137,7 @@ class MyAssistant(AgentService):
     # This is for authenticating the telegram api when connecting for the first time 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._agent = FunctionsBasedAgent(llm=ChatOpenAI(self.client, model_name=MODEL_NAME), tools=[SearchTool(),GoPlusSecurityTool(),GetCommunityMembers(),AltCoinHunter()])
+        self._agent = FunctionsBasedAgent(llm=ChatOpenAI(self.client, model_name=MODEL_NAME), tools=[SearchTool(),GoPlusSecurityTool(),AltCoinHunter()])
         self._agent.PROMPT = SYSTEM_PROMPT
 
         # This Mixin provides HTTP endpoints that connects this agent to a web client

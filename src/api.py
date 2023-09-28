@@ -105,7 +105,7 @@ class CustomTelegramTransport(TelegramTransport):
                 else:
                     message_text="unverified_member "+" "+message_text
         elif payload.get("chat")["type"] =="supergroup":
-                prefix = "@GemchAplhatest_bot"
+                prefix = "@GemachAlphaIntelligenceBot"
                 if not message_text.startswith(prefix):
                      message_text=None
         if message_text is not None:

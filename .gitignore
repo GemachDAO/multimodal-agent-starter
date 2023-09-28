@@ -9,3 +9,4 @@ logs/
 *.session
 *.session-journal
 .env
+steamship.json

@@ -65,6 +65,15 @@ class CustomTelegramTransport(TelegramTransport):
     def _parse_inbound(self, payload: dict, context: Optional[dict] = None) -> Optional[Block]:
         """Parses an inbound Telegram message."""
         chat = payload.get("chat")
+        chat_id = chat.get("id")
+        sticker= payload.get("sticker")
+        document= payload.get("document")
+        message_id = payload.get("message_id")
+        if document or sticker:
+            result = Block(text="Don't respond")
+            result.set_chat_id(str(chat_id))
+            result.set_message_id(str(message_id))
+            return result
         if chat is None:
             raise SteamshipError(f"No `chat` found in Telegram message: {payload}")
         chat_id = chat.get("id")
@@ -74,7 +83,6 @@ class CustomTelegramTransport(TelegramTransport):
             raise SteamshipError(
                 f"Bad 'chat_id' found in Telegram message: ({chat_id}). Should have been an int."
             )
-        message_id = payload.get("message_id")
         if message_id is None:
             raise SteamshipError(f"No 'message_id' found in Telegram message: {payload}")
         if not isinstance(message_id, int):
@@ -108,7 +116,7 @@ class CustomTelegramTransport(TelegramTransport):
                 prefix = "@GemachAlphaIntelligenceBot"
                 if not message_text.startswith(prefix):
                      message_text=None
-        if message_text is not None:
+        if message_text is not None :
             result = Block(text=message_text)
             result.set_chat_id(str(chat_id))
             result.set_message_id(str(message_id))

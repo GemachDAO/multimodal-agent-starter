@@ -61,18 +61,17 @@ class AltCoinHunter(Tool):
         params = {
             "chain": 'ether',
         }
-        token_address = self.get_base_token_addresses()
+        token_addresses = self.get_base_token_addresses()
         respons_ouptut = []
         token_string = ""
         
-        for token in token_address:
+        for token in token_addresses:
             params["address"] = token
             response = requests.get(base_url, headers=headers, params=params)
             data = filter_data(response.json())
             respons_ouptut.append(data)
-            token_string+=str(data)
             #Check the length of token_string
-            if len(token_string) >= 16000:
+            if len(respons_ouptut) >= 13:
                 break
         return respons_ouptut
 

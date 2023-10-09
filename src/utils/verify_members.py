@@ -8,7 +8,7 @@ config = find_dotenv()
 load_dotenv(config)
 api_id =os.getenv('API_ID')
 api_hash =os.getenv('API_HASH')
-session_string = str(os.getenv('SESSION_STRING'))+"="
+session_string = str(os.getenv('SESSION_STRING'))
 async def fetch_telegram_data(member_id:int)->bool:
         # Initialize the Telegram client
     client= TelegramClient(StringSession(session_string), api_id, api_hash)

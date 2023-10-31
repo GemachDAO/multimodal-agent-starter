@@ -57,7 +57,6 @@ Example response for a request that required a Google search: "I've found some v
 IMPORTANT: a discussion starting with "unverified_member /start" come from non-member users, tell them they are not member of GemachDAO Community wich is token-gated. They should be holder of Gemach Token to be able to join the community and fully use the Agent and just respond to their first 3 request and tell them to join this bot "https://t.me/Gemach_Bot" for verification.
 
 Only use the functions you have been provided with.
-when the prompt is "Don't respond" just dont send any answer because it probably comes from a telegram channel
 """
 MODEL_NAME = "gpt-4"
 
@@ -66,14 +65,7 @@ class CustomTelegramTransport(TelegramTransport):
         """Parses an inbound Telegram message."""
         chat = payload.get("chat")
         chat_id = chat.get("id")
-        sticker= payload.get("sticker")
-        document= payload.get("document")
         message_id = payload.get("message_id")
-        if document or sticker:
-            result = Block(text="Don't respond")
-            result.set_chat_id(str(chat_id))
-            result.set_message_id(str(message_id))
-            return result
         if chat is None:
             raise SteamshipError(f"No `chat` found in Telegram message: {payload}")
         chat_id = chat.get("id")
@@ -112,20 +104,13 @@ class CustomTelegramTransport(TelegramTransport):
                     message_text="verified_member "+" "+message_text
                 else:
                     message_text="unverified_member "+" "+message_text
-        elif payload.get("chat")["type"] =="supergroup":
-                prefix = "@GemachAlphaIntelligenceBot"
-                if not message_text.startswith(prefix):
-                     message_text=None
         if message_text is not None :
             result = Block(text=message_text)
             result.set_chat_id(str(chat_id))
             result.set_message_id(str(message_id))
             return result
         else:
-            result = Block(text="Don't respond")
-            result.set_chat_id(str(chat_id))
-            result.set_message_id(str(message_id))
-            return result
+            return None
 
 class MyAssistant(AgentService):
     api_id =os.getenv('api_id')

@@ -1,7 +1,7 @@
 {
 	"type": "package",
-	"handle": "gemach-dao",
-	"version": "1.1.1-rc.3",
+	"handle": "gemach-ai",
+	"version": "1.1.1-rc.2",
 	"description": "",
 	"author": "GemachDAO",
 	"entrypoint": "",
@@ -14,15 +14,10 @@
 		]
 	},
 	"configTemplate": {
-		"bot_token": {
+		"telegram_bot_token": {
 			"type": "string",
-			"description": "The secret token for your Telegram bot",
-			"default": null
-		},
-		"api_base": {
-			"type": "string",
-			"description": "The root API for Telegram",
-			"default": "https://api.telegram.org/bot"
+			"description": "[Optional] Secret token for connecting to Telegram",
+			"default": ""
 		}
 	},
 	"steamshipRegistry": {

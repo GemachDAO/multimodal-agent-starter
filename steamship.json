@@ -1,7 +1,7 @@
 {
 	"type": "package",
 	"handle": "gemach-dao",
-	"version": "1.1.1-rc.2",
+	"version": "1.1.1-rc.3",
 	"description": "",
 	"author": "GemachDAO",
 	"entrypoint": "",

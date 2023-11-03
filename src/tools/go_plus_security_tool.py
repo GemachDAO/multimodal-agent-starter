@@ -3,10 +3,6 @@ from steamship.agents.schema import AgentContext, Tool
 from steamship import Block
 from steamship.utils.repl import ToolREPL
 import requests
-import os
-from dotenv import load_dotenv, find_dotenv
-config = find_dotenv()
-load_dotenv(config)
 class GoPlusSecurityTool(Tool):
     """
     Custom Steamship tool for performing various Security checks on web3 using GoPlus API.
@@ -30,11 +26,10 @@ class GoPlusSecurityTool(Tool):
                 json = {"command": params[0], "arguments": params[1:]}
                 data=None
                 # call the api with the json data and set autorization header to TOKEN from .env file using os.getenv
-                response = requests.post("https://gemach-one.vercel.app/api", json=json, headers={"Authorization":os.getenv("TOKEN")})
+                response = requests.post("https://gemach-one.vercel.app/api", json=json)
                 # if the response is ok then set the data to the response json
                 if response.ok:
                     data = response.json()
-                    print(data)
                     # append a block with the data as string to the output
                     output.append(Block(text=str(data)))
                 else:

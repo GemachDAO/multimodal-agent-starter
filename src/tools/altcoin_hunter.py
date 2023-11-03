@@ -63,15 +63,13 @@ class AltCoinHunter(Tool):
         }
         token_addresses = self.get_base_token_addresses()
         respons_ouptut = []
-        token_string = ""
-        
         for token in token_addresses:
             params["address"] = token
             response = requests.get(base_url, headers=headers, params=params)
             data = filter_data(response.json())
             respons_ouptut.append(data)
             #Check the length of token_string
-            if len(respons_ouptut) >= 13:
+            if len(respons_ouptut) >= 15:
                 break
         return respons_ouptut
 

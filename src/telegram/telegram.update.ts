@@ -7,24 +7,37 @@ import {
 } from 'nestjs-telegraf';
 import { Context } from 'telegraf';
 import axios from 'axios'
-import { UsersService } from 'src/users/users.service';
 import { ConfigService } from '@nestjs/config';
 @Update()
 export class TelegramUpdate {
     private aiAgentURL: string
-    constructor(private readonly userService: UsersService, private readonly configService: ConfigService) {
+    private daoGroupId: number
+    constructor(private readonly configService: ConfigService) {
         this.aiAgentURL = configService.get('AI_AGENT_URL')
+        this.daoGroupId = -1001531445636
     }
     @Start()
     async start(@Ctx() ctx: Context) {
         const userId = this.extractUserId(ctx)
-        const user = await this.userService.getUser(userId)
-        let updatedCtx = null
-        if (!user || !user.isFreeUser) {
-            updatedCtx = this.updatePrompt(ctx)
-            await this.sendAIAgentResponse(updatedCtx)
-        } else {
-            this.sendAIAgentResponse(ctx)
+        const isMessageFromGroup = this.isMessageFromGroup(ctx)
+        if (!isMessageFromGroup) {
+            const isMember = await this.isUserInGroup(-1001849337979, userId)
+            if (isMember) {
+                await this.sendAIAgentResponse(ctx)
+            } else {
+                await ctx.reply(`
+                🚀 Greetings, space traveler! 🌌
+
+    To fully embark on this DeFi journey with Gemach Alpha Intelligence aboard the Starship Gemach, you'll need to be part of our esteemed DAO community. Here's how:
+
+    1. Secure a minimum of \`${this.numberWithCommas(this.configService.get('GMAC_REQUIRED_FOR_ACCESS'))} GMAC\`  tokens.
+    2. Join our community by [clicking here](https://telegram.me/collablandbot?start=VFBDI1RFTCNDT01NIy0xMDAxNTMxNDQ1NjM2).
+    3. Once you're in, return to this AI bot and type \`/start\` to unlock 
+    a universe of DeFi insights and strategies.
+
+    We're excited to have you onboard! 🚀
+                `, { parse_mode: 'Markdown' })
+            }
         }
     }
 
@@ -36,19 +49,57 @@ export class TelegramUpdate {
             parse_mode: 'Markdown'
         });
     }
-
-    @On('sticker')
-    async on(@Ctx() ctx: Context) {
-        await ctx.reply(`😄 Looks like you sent a sticker! While I can't visually appreciate it, I'm here to help with any DeFi insights or questions you might have. Let's dive into the DeFi universe together! 🌌
-        `);
-    }
     @On('text')
-    async handleTextResponses(@Ctx() ctx: Context) {
-        await this.sendAIAgentResponse(ctx)
+    async handleTextResponse(@Ctx() ctx: Context) {
+        const userId = this.extractUserId(ctx)
+        let canProcessMessage: boolean
+        const isMessageSentToBot = this.isMessageSentToBot(ctx)
+        const isMessageFromGroup = this.isMessageFromGroup(ctx)
+        const isDAOMember = await this.isUserInGroup(-1001849337979, userId)
+        if (isMessageFromGroup) {
+            canProcessMessage = isDAOMember && isMessageSentToBot
+            if (canProcessMessage) {
+                await this.sendAIAgentResponse(ctx)
+            }
+        } else {
+            if (isDAOMember) {
+                await this.sendAIAgentResponse(ctx)
+            } else {
+                await ctx.reply(`
+                🚀 Greetings, space traveler! 🌌
+
+    To fully embark on this DeFi journey with Gemach Alpha Intelligence aboard the Starship Gemach, you'll need to be part of our esteemed DAO community. Here's how:
+
+    1. Secure a minimum of \`${this.numberWithCommas(this.configService.get('GMAC_REQUIRED_FOR_ACCESS'))} GMAC\`  tokens.
+    2. Join our community by [clicking here](https://telegram.me/collablandbot?start=VFBDI1RFTCNDT01NIy0xMDAxNTMxNDQ1NjM2).
+    3. Once you're in, return to this AI bot and type \`/start\` to unlock 
+    a universe of DeFi insights and strategies.
+
+    We're excited to have you onboard! 🚀
+                `, { parse_mode: 'Markdown' })
+            }
+        }
 
     }
+    private isMessageFromGroup(ctx: Context): boolean {
+        const isFromGroup = 'message' in ctx.update && (ctx.update.message.chat.type == "group" || ctx.update.message.chat.type == "supergroup") ? true : false
+        return isFromGroup
+    }
+    private isMessageSentToBot(ctx: Context): boolean {
+        const prefix = `@${ctx.botInfo.username}`;
+        const messageText = this.extractText(ctx);
 
+        if (messageText && messageText.startsWith(prefix)) {
+            return true;
+        }
+        return false;
+    }
 
+    private numberWithCommas(x: number) {
+        var parts = x.toString().split(".");
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return parts.join(".");
+    }
     private extractUserId(ctx: Context) {
         const telegramId =
             'message' in ctx.update && typeof (ctx.update.message.from.id) === 'number'
@@ -56,26 +107,35 @@ export class TelegramUpdate {
                 : 'callback_query' in ctx.update
                     ? ctx.update.callback_query.from.id
                     : null;
-
-        const username =
-            'message' in ctx.update && typeof (ctx.update.message.from.id) === 'number'
-                ? ctx.update.message.from.username || ctx.update.message.from.first_name
-                : 'callback_query' in ctx.update
-                    ? ctx.update.callback_query.from.username ||
-                    ctx.update.callback_query.from.first_name
-                    : null;
         return telegramId;
     }
-    private updatePrompt(ctx: Context) {
-        'message' in ctx.update ? 'text' in ctx.update.message ? ctx.update.message.text = `${ctx.update.message.text} not a member` : null : null;
-        return ctx
+    private extractText(ctx: Context) {
+        const messageText = 'message' in ctx.update && 'text' in ctx.update.message ? ctx.update.message.text : null
+        return messageText
+    }
+    private extractMessageId(ctx: Context) {
+        const messageId = 'message' in ctx.update ? ctx.update.message.message_id : null
+        return messageId
+    }
+    async isUserInGroup(chatId: string | number, userId: number) {
+        const TELEGRAM_API_URL = 'https://api.telegram.org';
+        const BOT_TOKEN = this.configService.get('TELEGRAM_BOT_TOKEN')
+        const endpoint = `${TELEGRAM_API_URL}/bot${BOT_TOKEN}/getChatMember?chat_id=${chatId}&user_id=${userId}`;
+        try {
+            const response = await axios.get(endpoint);
+            const status = response.data.result.status;
+            return status !== 'left' && status !== 'kicked';
+        } catch (error) {
+            return false;
+        }
     }
     private async sendAIAgentResponse(ctx: Context) {
         const aiAgentResponse = await axios.post(this.aiAgentURL, { payload: ctx.update })
-        console.log(aiAgentResponse.data);
         await ctx.reply(aiAgentResponse.data.data, {
             parse_mode: 'Markdown',
-            disable_web_page_preview: true
+            disable_web_page_preview: true,
+            reply_to_message_id: this.extractMessageId(ctx)
         });
     }
+ 
 }

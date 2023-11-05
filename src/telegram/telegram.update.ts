@@ -21,7 +21,7 @@ export class TelegramUpdate {
         const userId = this.extractUserId(ctx)
         const isMessageFromGroup = this.isMessageFromGroup(ctx)
         if (!isMessageFromGroup) {
-            const isMember = await this.isUserInGroup(-1001849337979, userId)
+            const isMember = await this.isUserInGroup(this.daoGroupId, userId)
             if (isMember) {
                 await this.sendAIAgentResponse(ctx)
             } else {
@@ -55,7 +55,7 @@ export class TelegramUpdate {
         let canProcessMessage: boolean
         const isMessageSentToBot = this.isMessageSentToBot(ctx)
         const isMessageFromGroup = this.isMessageFromGroup(ctx)
-        const isDAOMember = await this.isUserInGroup(-1001849337979, userId)
+        const isDAOMember = await this.isUserInGroup(this.daoGroupId, userId)
         if (isMessageFromGroup) {
             canProcessMessage = isDAOMember && isMessageSentToBot
             if (canProcessMessage) {

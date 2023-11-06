@@ -56,6 +56,7 @@ export class TelegramUpdate {
         const isMessageSentToBot = this.isMessageSentToBot(ctx)
         const isMessageFromGroup = this.isMessageFromGroup(ctx)
         const isDAOMember = await this.isUserInGroup(this.daoGroupId, userId)
+
         if (isMessageFromGroup) {
             canProcessMessage = isDAOMember && isMessageSentToBot
             if (canProcessMessage) {
@@ -130,8 +131,12 @@ export class TelegramUpdate {
         }
     }
     private async sendAIAgentResponse(ctx: Context) {
-        const aiAgentResponse = await axios.post(this.aiAgentURL, { payload: ctx.update })
-        await ctx.reply(aiAgentResponse.data.data, {
+        const aiAgentResponse = await axios.post(this.aiAgentURL, { payload: ctx.update },{
+        headers:{
+            'Authorization': `Bearer ${this.configService.get('STEAMSHIP_API_KEY')}`
+        }
+        })
+        await ctx.reply(aiAgentResponse.data, {
             parse_mode: 'Markdown',
             disable_web_page_preview: true,
             reply_to_message_id: this.extractMessageId(ctx)

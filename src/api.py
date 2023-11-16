@@ -210,7 +210,8 @@ class GemachAlphaIntelligence(AgentService):
         # This agent's planner is responsible for making decisions about what to do for a given input.
         agent = FunctionsBasedAgent(
             tools=self.tools,
-            llm=ChatOpenAI(self.client, model_name="gpt-4"),
+            llm=ChatOpenAI(self.client, model_name="gpt-4",                            max_tokens=1000, 
+),
         )
 
         # Here is where we override the agent's prompt to set its personality. It is very important that
